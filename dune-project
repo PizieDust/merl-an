@@ -1,4 +1,4 @@
-(lang dune 3.17)
+(lang dune 3.23)
 
 (name merl-an)
 
@@ -22,7 +22,7 @@
   "Merl-an generates queries to analyze merlin performance and behavior, executes them and gathers the results.")
  (depends
   (ocaml
-   (>= 5.3.0))
+   (>= 5.4))
   ppxlib
   yojson
   fpath
@@ -36,5 +36,8 @@
   merlin-lib
   dot-merlin-reader
   (merlin :with-test)
-  (ocaml-lsp-server (>= 0.29.0 :with-dev-setup))
-  (ocamlformat :with-dev-setup)))
+  (ocaml-lsp-server :with-dev-setup)
+  (ocamlformat
+   (and
+    (= 0.29.0)
+    :with-dev-setup))))
