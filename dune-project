@@ -36,6 +36,5 @@
   merlin-lib
   dot-merlin-reader
   (merlin :with-test)
-  (cb-check :with-test)
   (ocaml-lsp-server (>= 0.29.0 :with-dev-setup))
   (ocamlformat :with-dev-setup)))
