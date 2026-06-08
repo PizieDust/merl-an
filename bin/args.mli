@@ -23,9 +23,11 @@ val cache_workflow : [> `Cache of Merl_an.Merlin.Cache_workflow.t ] Term.t
     fully initialized cache: it uses the merlin server frontend and initializes
     the cache 100%.*)
 
-val sample_size : [ `Sample_size of int ] Term.t
-(** Number of samples per file. Defaults to 30.*)
-(* FIXME: Make that a relative numer: relative to the size of the file. *)
+val per_file_samples : [ `File_samples of int ] Term.t
+(** Number of samples per file. Defaults to 10.*)
+
+val total_samples : [ `Total_samples of int option ] Term.t
+(** Limit on the number of samples across the whole project.*)
 
 val query_types : [> `Query_types of Merl_an.Merlin.Query_type.t list ] Term.t
 (** List of merlin commands you want to be analyzed. Defaults to all of them. *)
@@ -42,8 +44,14 @@ val no_full : [> `No_full of bool ] Term.t
 (** In [behavior] cmd, configures whether the whole Merlin response of each
     query will be dumped. *)
 
+val force_yes : [> `Force_yes of bool ] Term.t
+(** Automatically answer yes to all prompts. *)
+
 val no_distilled_data : [> `No_distilled_data of bool ] Term.t
 (** In [behavior] cmd, configures whether the the following simplification of
     the Merlin response of each query will be dumped: Dump whether the return
     class of the response is a [return] containing a message, a return
     containing a JSON, a [failure], an [error], or an [exception]. *)
+
+val filter_outliers : [> `Filter_outliers of bool ] Term.t
+(** Filters outliers from merlin responses. *)

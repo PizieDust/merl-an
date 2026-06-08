@@ -31,12 +31,12 @@ let dir_name =
 let cache_workflow =
   let doc =
     "This tool supports different workflows simulating different states of the \
-     [ocamlmerlin] cache. The option [bufer-typed] simulates the situation of \
-     using Merlin on a fully typed buffer: the cache of the current typing as \
-     well as the cmi-cache are warm; the cmt-cache is unpredictable. The \
-     option [no-cache] simulates the situation of opening a new project and \
-     running a merlin query for the very first time: it uses the single \
-     frontend."
+     [ocamlmerlin] cache. Wich the option [full-cache], both the cache of the \
+     current typing as well as the cmi-cache are warm; the cmt-cache is \
+     unpredictable. The option [no-cache] simulates the situation of opening a \
+     new project and running a merlin query for the very first time: it uses \
+     the single frontend. The option [cmi-cached] is in between: the cmi-cache \
+     is warm, the cache of the current typing disabled."
     (*TODO: Add: The option [hot] simulates the situation of having a \
       fully initialized cache: it uses the merlin server frontend and \
       initializes the cache 100%.*)
@@ -51,15 +51,26 @@ let cache_workflow =
     (fun x -> `Cache x)
     Arg.(
       value
-      & opt e Merl_an.Merlin.Cache_workflow.Buffer_typed
+      & opt e Merl_an.Merlin.Cache_workflow.Full_cache
       & info [ "cache" ] ~doc)
 
-let sample_size =
-  (* FIXME: Make that a relative numer: relative to the size of the file. *)
-  let doc = "Number of samples per file. Defaults to 30." in
+let per_file_samples =
+  let doc = "Number of samples per file. Defaults to 10." in
   named
-    (fun x -> `Sample_size x)
-    Arg.(value & opt int 30 & info [ "sample-size"; "s" ] ~doc)
+    (fun x -> `File_samples x)
+    Arg.(value & opt int 10 & info [ "per-file-samples"; "s" ] ~doc)
+
+let total_samples =
+  let doc =
+    "Limits the total number of samples to generate. The tool randomly selects \
+     enough files to reach this limit and takes --per-file-samples samples \
+     from each file (default: 10). As each file contributes exactly \
+     --per-file-samples samples, --total-samples is rounded down to the \
+     nearest multiple if needed."
+  in
+  named
+    (fun x -> `Total_samples x)
+    Arg.(value & opt (some int) None & info [ "total_samples"; "t" ] ~doc)
 
 let query_types =
   let doc =
@@ -106,6 +117,10 @@ let no_full =
   let doc = "Don't dump the full Merlin response." in
   named (fun x -> `No_full x) Arg.(value & flag & info [ "no-full" ] ~doc)
 
+let force_yes =
+  let doc = "Automatically answer yes to all prompts." in
+  named (fun x -> `Force_yes x) Arg.(value & flag & info [ "yes"; "y" ] ~doc)
+
 let no_distilled_data =
   let doc =
     "Don't dump the distillation of the Merlin responses down into category \
@@ -114,3 +129,9 @@ let no_distilled_data =
   named
     (fun x -> `No_distilled_data x)
     Arg.(value & flag & info [ "no-distilled-data" ] ~doc)
+
+let filter_outliers =
+  let doc = "Filter outliers from Merlin responses." in
+  named
+    (fun x -> `Filter_outliers x)
+    Arg.(value & flag & info [ "filter-outliers" ] ~doc)

@@ -1,8 +1,8 @@
 open! Import
 
 let analyze ~backend:(module Backend : Backend.Data_tables) ~repeats
-    ~cache_workflow ~merlin_path ~proj_dirs ~data_dir ~sample_size ~query_types
-    ~extensions =
+    ~cache_workflow ~merlin_path ~proj_dirs ~data_dir ~per_file_samples
+    ~total_samples ~query_types ~filter_outliers ~extensions ~force_yes =
   let merlin_path = Fpath.v merlin_path in
   let merlin = Merlin.make merlin_path cache_workflow in
   let proj_path dir = Fpath.v @@ dir in
@@ -25,10 +25,26 @@ let analyze ~backend:(module Backend : Backend.Data_tables) ~repeats
         Fpath.v ("data/" ^ proj_name ^ "+" ^ ts)
   in
   let module D = Data.Make (Backend) in
-  let data = D.init merlin data_dir in
+  let* data = D.init ~force_yes merlin data_dir in
   let init_cache = D.init_cache data in
   let proj_paths = List.map proj_path proj_dirs in
-  let* files = File.get_files ~extensions proj_paths in
+  let* all_files = File.get_files ~extensions proj_paths in
+  let files =
+    match total_samples with
+    | None -> all_files
+    | Some total ->
+        let num_files = total / per_file_samples in
+        let random_state = Reservoir.Random_state.make "chocolate" in
+        let reservoir =
+          Reservoir.init ~placeholder:(List.hd all_files) ~random_state
+            num_files
+        in
+        let () =
+          List.iter (Reservoir.update ~random_state reservoir) all_files
+        in
+        let make_sample ~id:_ file = file in
+        Reservoir.get_samples ~make_sample ~id_counter:1 reservoir
+  in
   (*TODO: add terminal logging when getting the files: log number of files that are going to be benchmarked and, at the end, log how many that are.*)
   let side_effectively_add_data id_counter (file, query_type) =
     let update = D.update data in
@@ -54,7 +70,7 @@ let analyze ~backend:(module Backend : Backend.Data_tables) ~repeats
       in
       id_counter + 1
     else
-      match Samples.generate ~sample_size ~id_counter file query_type with
+      match Samples.generate ~per_file_samples ~id_counter file query_type with
       | None ->
           let log =
             Logs.Warning
@@ -65,7 +81,8 @@ let analyze ~backend:(module Backend : Backend.Data_tables) ~repeats
           id_counter
       | Some (samples, new_id_counter) -> (
           match
-            Samples.analyze ~init_cache ~merlin ~repeats ~update samples
+            Samples.analyze ~init_cache ~merlin ~repeats ~update
+              ~filter_outliers samples
           with
           | Ok () -> new_id_counter
           | Error log ->

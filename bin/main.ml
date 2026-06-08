@@ -11,14 +11,16 @@ let man =
        dumped into json-line files.";
   ]
 
-let analyze ~backend (`Cache cache_workflow) (`Repeats repeats)
-    (`Merlin merlin_path) (`Proj_dirs proj_dirs) (`Dir_name data_dir)
-    (`Sample_size sample_size) (`Query_types query_types)
-    (`Extensions extensions) =
+let analyze ~backend (`Filter_outliers filter_outliers) (`Cache cache_workflow)
+    (`Repeats repeats) (`Merlin merlin_path) (`Proj_dirs proj_dirs)
+    (`Dir_name data_dir) (`File_samples per_file_samples)
+    (`Total_samples total_samples) (`Query_types query_types)
+    (`Extensions extensions) (`Force_yes force_yes) =
   Printexc.record_backtrace true;
   match
     Merl_an.Workflows.analyze ~backend ~repeats ~cache_workflow ~merlin_path
-      ~proj_dirs ~data_dir ~sample_size ~query_types ~extensions
+      ~proj_dirs ~data_dir ~per_file_samples ~total_samples ~query_types
+      ~filter_outliers ~extensions ~force_yes
   with
   | Ok () -> ()
   | Error (`Msg err) ->
@@ -35,9 +37,9 @@ let performance_term =
   in
   Term.(
     const (analyze ~backend)
-    $ Args.cache_workflow $ Args.repeats_per_sample $ Args.merlin
-    $ Args.proj_dirs $ Args.dir_name $ Args.sample_size $ Args.query_types
-    $ Args.extensions)
+    $ Args.filter_outliers $ Args.cache_workflow $ Args.repeats_per_sample
+    $ Args.merlin $ Args.proj_dirs $ Args.dir_name $ Args.per_file_samples
+    $ Args.total_samples $ Args.query_types $ Args.extensions $ Args.force_yes)
 
 let performance =
   let info =
@@ -50,7 +52,8 @@ let performance =
   Cmd.v info performance_term
 
 let behavior =
-  let f (`No_full no_full) (`No_distilled_data no_distilled_data) cache =
+  let f (`No_full no_full) (`No_distilled_data no_distilled_data) (`Cache cache)
+      =
     let config =
       {
         Merl_an.Backend.full = not no_full;
@@ -58,13 +61,14 @@ let behavior =
       }
     in
     let backend = Merl_an.Backend.behavior config in
-    analyze ~backend cache (`Repeats 1)
+    analyze ~backend (`Filter_outliers false) (`Cache cache) (`Repeats 1)
   in
   let pre_term = Term.(const f $ Args.no_full $ Args.no_distilled_data) in
   let behavior_term =
     Term.(
       pre_term $ Args.cache_workflow $ Args.merlin $ Args.proj_dirs
-      $ Args.dir_name $ Args.sample_size $ Args.query_types $ Args.extensions)
+      $ Args.dir_name $ Args.per_file_samples $ Args.total_samples
+      $ Args.query_types $ Args.extensions $ Args.force_yes)
   in
   let info =
     let doc =
@@ -85,10 +89,12 @@ let benchmark =
   in
   let regression_term =
     Term.(
-      const
-        (analyze ~backend (`Cache Merl_an.Merlin.Cache_workflow.Buffer_typed))
+      const (analyze ~backend)
+      $ Args.filter_outliers
+      $ const (`Cache Merl_an.Merlin.Cache_workflow.Full_cache)
       $ Args.repeats_per_sample $ Args.merlin $ Args.proj_dirs $ Args.dir_name
-      $ Args.sample_size $ Args.query_types $ Args.extensions)
+      $ Args.per_file_samples $ Args.total_samples $ Args.query_types
+      $ Args.extensions $ Args.force_yes)
   in
   let info =
     let doc = "TODO" in
