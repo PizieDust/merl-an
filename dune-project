@@ -1,8 +1,9 @@
-(lang dune 3.17)
+(lang dune 3.23)
 
 (name merl-an)
 
 (cram enable)
+
 (generate_opam_files true)
 
 (source
@@ -17,9 +18,11 @@
 (package
  (name merl-an)
  (synopsis "Tool for merlin performance analysis")
- (description "Merl-an generates queries to analyze merlin performance and behavior, executes them and gathers the results.")
+ (description
+  "Merl-an generates queries to analyze merlin performance and behavior, executes them and gathers the results.")
  (depends
-  (ocaml (>= 5.3.0))
+  (ocaml
+   (>= 5.4))
   ppxlib
   yojson
   fpath
@@ -33,6 +36,8 @@
   merlin-lib
   dot-merlin-reader
   (merlin :with-test)
-  (cb-check :with-test)
   (ocaml-lsp-server :with-dev-setup)
-  (ocamlformat :with-dev-setup)))
+  (ocamlformat
+   (and
+    (= 0.29.0)
+    :with-dev-setup))))

@@ -12,8 +12,7 @@ type sample = {
 
 module Make (B : Backend.Data_tables) = struct
   (* TODO: should probably also contain `repeats` and all the other means of configuration  *)
-  type t = { dump_dir : Fpath.t; mutable content : B.t; merlin : Merlin.t }
-  [@@warning "-unused-field"]
+  type t = { dump_dir : Fpath.t; content : B.t; merlin : Merlin.t }
 
   let create_dir_recursively ~force_yes data_path =
     let dir = Fpath.to_string data_path in
