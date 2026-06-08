@@ -18,24 +18,13 @@
       let
         pkgs = import nixpkgs { inherit system; };
         inherit (pkgs.ocamlPackages) buildDunePackage;
-        cb-check = buildDunePackage {
-          pname = "cb-check";
-          src = cb-repository;
-          version = "n/a";
-          duneVersion = "3";
-          buildInputs = with pkgs.ocamlPackages; [
-            ocaml
-            yojson
-          ];
-        };
         merlin-lib = buildDunePackage {
             pname = "merlin-lib";
             version = "dev";
             src = merlin-repository;
             duneVersion = "3";
-            propagatedBuildInputs = with pkgs.ocamlPackages; [
-              csexp
-            ];
+            propagatedBuildInputs = with ocamlPackages; [ csexp ];
+            checkInputs = with ocamlPackages; [ alcotest ];
             doCheck = true;
           };
         dot-merlin-reader = buildDunePackage {
@@ -43,12 +32,8 @@
             version = "dev";
             src = merlin-repository;
             duneVersion = "3";
-            propagatedBuildInputs = [
-              pkgs.ocamlPackages.findlib
-            ];
-            buildInputs = [
-              merlin-lib
-            ];
+            propagatedBuildInputs = [ ocamlPackages.findlib ];
+            buildInputs = [ merlin-lib ];
             doCheck = true;
           };
         merlin = buildDunePackage {
@@ -103,6 +88,7 @@
                     ppx_fields_conv
                     ppx_yojson_conv
                     ptime
+                    rresult
                 ];
               checkInputs =
                 [ merlin
@@ -113,7 +99,7 @@
           devShells.default = pkgs.mkShell {
             inputsFrom = pkgs.lib.attrValues packages;
             buildInputs = with pkgs.ocamlPackages; [
-              pkgs.ocamlformat_0_27_0
+              pkgs.ocamlformat_0_29_0
               cb-check
               ocaml-lsp
               pkgs.jq
