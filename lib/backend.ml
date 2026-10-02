@@ -245,17 +245,6 @@ module Performance = struct
   let init_cache p = Merlin.is_server p.merlin
   let kind = Perf
 
-  let dump ~dump_dir t =
-    let d = dump_dir in
-    let () =
-      Fields.iter ~performances:(Field.dump P.pp d t)
-        ~query_responses:(Field.dump Query_response.pp d t)
-        ~commands:(Field.dump Command.pp d t)
-        ~logs:(Field.dump Logs.pp d t)
-        ~merlin:(Field.dump_single Merlin.pp d t)
-    in
-    ()
-
   let update_analysis_data ~id ~responses ~cmd ~file ~loc ~query_type tables =
     let max_timing, timings, responses = extract_timings responses in
     let perf =
@@ -335,15 +324,6 @@ let behavior config =
     [@@deriving fields]
 
     let kind = Regr
-
-    let dump ~dump_dir t =
-      let d = dump_dir in
-      Fields.iter
-        ~full_responses:(Field.dump_opt Query_response.pp d t)
-        ~distilled_data:(Field.dump_opt Distilled_data.pp d t)
-        ~commands:(Field.dump Command.pp d t)
-        ~logs:(Field.dump Logs.pp d t)
-
     let persist_logs ~log tables = write_json_line tables.logs Logs.pp log
 
     let update_analysis_data ~id ~responses ~cmd ~file:_ ~loc:_ ~query_type:_
@@ -470,18 +450,6 @@ module Benchmark = struct
   let all_files () =
     let f = Field.to_filename in
     Fields.to_list ~bench:f ~query_responses:f ~commands:f ~logs:f ~merlin:f
-
-  let dump ~dump_dir t =
-    let d = dump_dir in
-    let () =
-      Fields.iter
-        ~bench:(Field.dump_single Benchmark_summary.pp d t)
-        ~query_responses:(Field.dump Query_response.pp d t)
-        ~commands:(Field.dump Command.pp d t)
-        ~logs:(Field.dump Logs.pp d t)
-        ~merlin:(Field.dump_single Merlin.pp d t)
-    in
-    ()
 
   let update_analysis_data ~id ~responses ~cmd ~file:_file
       ~loc:(_loc : Import.location) ~query_type tables =
