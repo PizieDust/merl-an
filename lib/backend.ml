@@ -6,7 +6,7 @@ module type Data_tables = sig
   type t
 
   val kind : kind
-  val create_initial : Merlin.t -> t
+  val create_initial : dump_dir:Fpath.t -> Merlin.t -> t
   val init_cache : t -> bool
 
   val update_analysis_data :
