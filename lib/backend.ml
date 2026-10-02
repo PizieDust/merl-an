@@ -440,10 +440,10 @@ let behavior config =
 
 module Benchmark = struct
   type t = {
-    mutable bench : Benchmark_summary.t;
-    mutable query_responses : Query_response.t list;
-    mutable commands : Command.t list;
-    mutable logs : Logs.t list;
+    bench : Benchmark_summary.t;
+    query_responses : out_channel;
+    commands : out_channel;
+    logs : out_channel;
     merlin : Merlin.t;
   }
   [@@deriving fields]
@@ -451,16 +451,21 @@ module Benchmark = struct
   let kind = Bench
   let init_cache b = Merlin.is_server b.merlin
 
-  let create_initial merlin =
+  let create_initial ~dump_dir merlin =
+    let query_responses =
+      open_channel dump_dir (Fpath.v "query_responses.json")
+    in
+    let commands = open_channel dump_dir (Fpath.v "commands.json") in
+    let logs = open_channel dump_dir (Fpath.v "logs.json") in
     {
       bench = { results = StringMap.empty };
-      query_responses = [];
-      commands = [];
-      logs = [];
+      query_responses;
+      commands;
+      logs;
       merlin;
     }
 
-  let persist_logs ~log tables = tables.logs <- log :: tables.logs
+  let persist_logs ~log tables = write_json_line tables.logs Logs.pp log
 
   let all_files () =
     let f = Field.to_filename in
@@ -481,7 +486,6 @@ module Benchmark = struct
   let update_analysis_data ~id ~responses ~cmd ~file:_file
       ~loc:(_loc : Import.location) ~query_type tables =
     let _max_timing, timings, responses = extract_timings responses in
-    let cmd = { Command.sample_id = id; cmd } in
     let metric =
       {
         Benchmark_metric.name = Merlin.Query_type.to_string query_type;
@@ -508,5 +512,8 @@ module Benchmark = struct
     Query_response.write_stripped tables.query_responses ~id ~cmd ~responses;
     Command.write tables.commands ~id ~cmd
 
-  let wrap_up _t ~dump_dir:_ ~proj_paths:_ ~merlin:_ = ()
+  let wrap_up t ~dump_dir ~proj_paths:_ ~merlin =
+    close_channels [ t.query_responses; t.commands; t.logs ];
+    dump_single Benchmark_summary.pp dump_dir (Fpath.v "bench.json") t.bench;
+    dump_single Merlin.pp dump_dir (Fpath.v "merlin.json") merlin
 end
