@@ -34,48 +34,26 @@ module Field = struct
   let to_filename field =
     let field_name = Fieldslib.Field.name field in
     Fpath.(add_ext ".json" @@ v field_name)
-
-  let dump_single pp dump_dir tables field =
-    let table_content = Fieldslib.Field.get field tables in
-    let file_name = to_filename field in
-    let file_path = Fpath.(to_string @@ append dump_dir file_name) in
-    let oc = open_out file_path in
-    Fun.protect
-      ~finally:(fun () -> close_out_noerr oc)
-      (fun () ->
-        let ppf = Format.formatter_of_out_channel oc in
-        pp ppf table_content)
-
-  let dump pp dump_dir tables field =
-    let write_json_lines ~pp ~ppf l =
-      Format.pp_print_list ~pp_sep:Format.pp_print_newline pp ppf l
-    in
-    let table_content = Fieldslib.Field.get field tables in
-    let file_name = to_filename field in
-    let file_path = Fpath.(to_string @@ append dump_dir file_name) in
-    let oc = open_out file_path in
-    Fun.protect
-      ~finally:(fun () -> close_out_noerr oc)
-      (fun () ->
-        let ppf = Format.formatter_of_out_channel oc in
-        write_json_lines ~pp ~ppf table_content)
-
-  let dump_opt pp dump_dir tables field =
-    let write_json_lines ~pp ~ppf l =
-      Format.pp_print_list ~pp_sep:Format.pp_print_newline pp ppf l
-    in
-    match Fieldslib.Field.get field tables with
-    | Some content ->
-        let file_name = to_filename field in
-        let file_path = Fpath.(to_string @@ append dump_dir file_name) in
-        let oc = open_out file_path in
-        Fun.protect
-          ~finally:(fun () -> close_out_noerr oc)
-          (fun () ->
-            let ppf = Format.formatter_of_out_channel oc in
-            write_json_lines ~pp ~ppf content)
-    | None -> ()
 end
+
+let write_json_line oc pp data =
+  let ppf = Format.formatter_of_out_channel oc in
+  Format.fprintf ppf "%a\n%!" pp data
+
+let open_channel dump_dir file_name =
+  let file_path = Fpath.(to_string @@ append dump_dir file_name) in
+  open_out file_path
+
+let dump_single pp dump_dir file_name data =
+  let file_path = Fpath.(to_string @@ append dump_dir file_name) in
+  let oc = open_out file_path in
+  Fun.protect
+    ~finally:(fun () -> close_out_noerr oc)
+    (fun () ->
+      let ppf = Format.formatter_of_out_channel oc in
+      Format.fprintf ppf "%a%!" pp data)
+
+let close_channels channels = List.iter close_out_noerr channels
 
 module P = struct
   type t = {
