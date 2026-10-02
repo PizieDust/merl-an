@@ -234,10 +234,10 @@ module Performance = struct
         - the way the query is run
   *)
   type t = {
-    mutable performances : P.t list;
-    mutable query_responses : Query_response.t list;
-    mutable commands : Command.t list;
-    mutable logs : Logs.t list;
+    performances : out_channel;
+    query_responses : out_channel;
+    commands : out_channel;
+    logs : out_channel;
     merlin : Merlin.t;
   }
   [@@deriving fields]
@@ -264,20 +264,17 @@ module Performance = struct
     write_json_line tables.performances P.pp perf;
     Query_response.write_stripped tables.query_responses ~id ~cmd ~responses;
     Command.write tables.commands ~id ~cmd
-    tables.performances <- perf :: tables.performances;
-    tables.query_responses <- resp :: tables.query_responses;
-    tables.commands <- cmd :: tables.commands
 
-  let persist_logs ~log tables = tables.logs <- log :: tables.logs
+  let persist_logs ~log tables = write_json_line tables.logs Logs.pp log
 
-  let create_initial merlin =
-    {
-      performances = [];
-      query_responses = [];
-      commands = [];
-      logs = [];
-      merlin;
-    }
+  let create_initial ~dump_dir merlin =
+    let performances = open_channel dump_dir (Fpath.v "performances.json") in
+    let query_responses =
+      open_channel dump_dir (Fpath.v "query_responses.json")
+    in
+    let commands = open_channel dump_dir (Fpath.v "commands.json") in
+    let logs = open_channel dump_dir (Fpath.v "logs.json") in
+    { performances; query_responses; commands; logs; merlin }
 
   module Metadata = struct
     type t = {
@@ -310,17 +307,12 @@ module Performance = struct
           (* query_time; *)
         }
       in
-      let file_path = Fpath.(to_string @@ append dump_dir file_name) in
-      let oc = open_out file_path in
-      Fun.protect
-        ~finally:(fun () -> close_out_noerr oc)
-        (fun () ->
-          let ppf = Format.formatter_of_out_channel oc in
-          Format.fprintf ppf "%a" pp metadata)
+      dump_single pp dump_dir file_name metadata
   end
 
-  let wrap_up _t ~dump_dir ~proj_paths ~merlin =
-    (* TODO: check whether there's data left in memory and, if so, dump it *)
+  let wrap_up t ~dump_dir ~proj_paths ~merlin =
+    close_channels [ t.performances; t.query_responses; t.commands; t.logs ];
+    dump_single Merlin.pp dump_dir (Fpath.v "merlin.json") merlin;
     Metadata.produce_and_dump ~dump_dir ~proj_paths ~merlin
 
   let all_files () =
