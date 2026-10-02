@@ -91,6 +91,18 @@ module Command = struct
     Format.fprintf ppf "%s%!" (Yojson.Safe.to_string (yojson_of_t data))
 end
 
+let extract_timings responses =
+  let rec loop ~max_timing ~responses ~timings = function
+    | [] -> (max_timing, timings, responses)
+    | resp :: rest ->
+        let timing = Merlin.Response.get_timing resp in
+        let timings = timing :: timings in
+        let responses = resp :: responses in
+        let max_timing = Int.max timing max_timing in
+        loop ~max_timing ~timings ~responses rest
+  in
+  loop ~max_timing:Int.min_int ~responses:[] ~timings:[] responses
+
 module Benchmark_metric = struct
   type t = { name : string; value : int list; units : string }
   [@@deriving yojson_of]
@@ -233,19 +245,7 @@ module Performance = struct
     ()
 
   let update_analysis_data ~id ~responses ~cmd ~file ~loc ~query_type tables =
-    let max_timing, timings, responses =
-      (* FIXME: add json struture to the two lists *)
-      let rec loop ~max_timing ~responses ~timings = function
-        | [] -> (max_timing, timings, responses)
-        | resp :: rest ->
-            let timing = Merlin.Response.get_timing resp in
-            let timings = timing :: timings in
-            let responses = resp :: responses in
-            let max_timing = Int.max timing max_timing in
-            loop ~max_timing ~timings ~responses rest
-      in
-      loop ~max_timing:Int.min_int ~responses:[] ~timings:[] responses
-    in
+    let max_timing, timings, responses = extract_timings responses in
     let perf =
       { P.timings; max_timing; file; query_type; sample_id = id; loc }
     in
@@ -480,19 +480,7 @@ module Benchmark = struct
 
   let update_analysis_data ~id ~responses ~cmd ~file:_file
       ~loc:(_loc : Import.location) ~query_type tables =
-    let _max_timing, timings, responses =
-      (* FIXME: add json struture to the two lists *)
-      let rec loop ~max_timing ~responses ~timings = function
-        | [] -> (max_timing, timings, responses)
-        | resp :: rest ->
-            let timing = Merlin.Response.get_timing resp in
-            let timings = timing :: timings in
-            let responses = resp :: responses in
-            let max_timing = Int.max timing max_timing in
-            loop ~max_timing ~timings ~responses rest
-      in
-      loop ~max_timing:Int.min_int ~responses:[] ~timings:[] responses
-    in
+    let _max_timing, timings, responses = extract_timings responses in
     let resp =
       (* TODO: make a cli-argument out of this instead of doing this always *)
       let responses =
