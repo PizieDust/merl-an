@@ -327,10 +327,10 @@ type behavior_config = { full : bool; distilled_data : bool }
 let behavior config =
   let module Behavior = struct
     type t = {
-      mutable full_responses : Query_response.t list option;
-      mutable distilled_data : Distilled_data.t list option;
-      mutable commands : Command.t list;
-      mutable logs : Logs.t list;
+      full_responses : out_channel option;
+      distilled_data : out_channel option;
+      commands : out_channel;
+      logs : out_channel;
     }
     [@@deriving fields]
 
@@ -344,34 +344,28 @@ let behavior config =
         ~commands:(Field.dump Command.pp d t)
         ~logs:(Field.dump Logs.pp d t)
 
-    let persist_logs ~log tables = tables.logs <- log :: tables.logs
+    let persist_logs ~log tables = write_json_line tables.logs Logs.pp log
 
     let update_analysis_data ~id ~responses ~cmd ~file:_ ~loc:_ ~query_type:_
         tables =
       Command.write tables.commands ~id ~cmd;
-      let () =
-        match tables.full_responses with
-        | None -> ()
-        | Some fr ->
-            tables.full_responses <-
-              (let resp =
-                 let responses =
-                   List.map
-                     (fun resp ->
-                       Merlin.Response.(
-                         strip_file
-                         @@ crop_arbitrary_keys
-                              [ "timing"; "cache"; "heap_mbytes" ]
-                         @@ strip_location @@ resp))
-                     responses
-                 in
-                 { Query_response.sample_id = id; cmd; responses }
-               in
-               Some (resp :: fr))
-      in
-      match tables.distilled_data with
-      | None -> ()
-      | Some rc -> (
+
+      Option.iter
+        (fun oc ->
+          let responses =
+            List.map
+              (fun resp ->
+                Merlin.Response.(
+                  strip_file
+                  @@ crop_arbitrary_keys [ "timing"; "cache"; "heap_mbytes" ]
+                  @@ strip_location @@ resp))
+              responses
+          in
+          let resp = { Query_response.sample_id = id; cmd; responses } in
+          write_json_line oc Query_response.pp resp)
+        tables.full_responses;
+      Option.iter
+        (fun oc ->
           match responses with
           | [ resp ] -> (
               match
@@ -387,7 +381,7 @@ let behavior config =
                       cmd;
                     }
                   in
-                  tables.distilled_data <- Some (new_entry :: rc)
+                  write_json_line oc Distilled_data.pp new_entry
               | Error log, Ok query_num ->
                   persist_logs ~log tables;
                   let new_entry =
@@ -398,7 +392,7 @@ let behavior config =
                       cmd;
                     }
                   in
-                  tables.distilled_data <- Some (new_entry :: rc)
+                  write_json_line oc Distilled_data.pp new_entry
               | Ok return, Error log ->
                   persist_logs ~log tables;
                   let new_entry =
@@ -409,20 +403,32 @@ let behavior config =
                       cmd;
                     }
                   in
-                  tables.distilled_data <- Some (new_entry :: rc)
+                  write_json_line oc Distilled_data.pp new_entry
               | Error log1, Error log2 ->
                   persist_logs ~log:log1 tables;
                   persist_logs ~log:log2 tables)
           | _ -> (*FIXME*) ())
+        tables.distilled_data
 
-    let create_initial _merlin =
-      let full_responses = if config.full then Some [] else None in
-      let distilled_data = if config.distilled_data then Some [] else None in
-      { full_responses; distilled_data; commands = []; logs = [] }
+    let create_initial ~dump_dir _merlin =
+      let full_responses =
+        if config.full then
+          Some (open_channel dump_dir (Fpath.v "full_responses.json"))
+        else None
+      in
+      let distilled_data =
+        if config.distilled_data then
+          Some (open_channel dump_dir (Fpath.v "distilled_data.json"))
+        else None
+      in
+      let commands = open_channel dump_dir (Fpath.v "commands.json") in
+      let logs = open_channel dump_dir (Fpath.v "logs.json") in
+      { full_responses; distilled_data; commands; logs }
 
-    let wrap_up _t ~dump_dir:_ ~proj_paths:_ ~merlin:_ =
-      (* TODO: check whether there's data left in memory and, if so, dump it *)
-      ()
+    let wrap_up t ~dump_dir:_ ~proj_paths:_ ~merlin:_ =
+      Option.iter close_out_noerr t.full_responses;
+      Option.iter close_out_noerr t.distilled_data;
+      close_channels [ t.commands; t.logs ]
 
     let init_cache _ = false
 
