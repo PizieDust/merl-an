@@ -30,11 +30,8 @@ module type Data_tables = sig
   val persist_logs : log:Logs.t -> t -> unit
   (** Append logs. *)
 
-  val dump : dump_dir:Fpath.t -> t -> unit
-  (** Dump all tables (as json-lines). *)
-
   val all_files : unit -> Fpath.t list
-  (** Returns the list of all files to which the data is dumped with [dump]. *)
+  (** Returns the list of all files to which the data is dumped. *)
 
   val wrap_up :
     t -> dump_dir:Fpath.t -> proj_paths:Fpath.t list -> merlin:Merlin.t -> unit

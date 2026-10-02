@@ -94,7 +94,6 @@ let analyze ~backend:(module Backend : Backend.Data_tables) ~repeats
     List.fold_over_product ~l1:files ~l2:query_types ~init:0
       side_effectively_add_data
   in
-  D.dump data;
   D.wrap_up data ~proj_paths;
   if Merlin.is_server merlin then Merlin.stop_server merlin else ();
   Ok ()

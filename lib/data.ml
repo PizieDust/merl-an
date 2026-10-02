@@ -74,5 +74,5 @@ module Make (B : Backend.Data_tables) = struct
   let wrap_up { content; dump_dir; merlin } =
     B.wrap_up content ~dump_dir ~merlin
 
-  let dump { dump_dir; content; _ } = B.dump ~dump_dir content
+    
 end
