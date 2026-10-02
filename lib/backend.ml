@@ -99,6 +99,8 @@ module Command = struct
 
   let pp ppf data =
     Format.fprintf ppf "%s%!" (Yojson.Safe.to_string (yojson_of_t data))
+
+  let write oc ~id ~cmd = write_json_line oc pp { sample_id = id; cmd }
 end
 
 let extract_timings responses =
@@ -261,7 +263,7 @@ module Performance = struct
     in
     write_json_line tables.performances P.pp perf;
     Query_response.write_stripped tables.query_responses ~id ~cmd ~responses;
-    let cmd = { Command.sample_id = id; cmd } in
+    Command.write tables.commands ~id ~cmd
     tables.performances <- perf :: tables.performances;
     tables.query_responses <- resp :: tables.query_responses;
     tables.commands <- cmd :: tables.commands
@@ -354,8 +356,7 @@ let behavior config =
 
     let update_analysis_data ~id ~responses ~cmd ~file:_ ~loc:_ ~query_type:_
         tables =
-      let command = { Command.sample_id = id; cmd } in
-      tables.commands <- command :: tables.commands;
+      Command.write tables.commands ~id ~cmd;
       let () =
         match tables.full_responses with
         | None -> ()
@@ -507,7 +508,7 @@ module Benchmark = struct
     in
     tables.bench.results <- result;
     Query_response.write_stripped tables.query_responses ~id ~cmd ~responses;
-    tables.commands <- cmd :: tables.commands
+    Command.write tables.commands ~id ~cmd
 
   let wrap_up _t ~dump_dir:_ ~proj_paths:_ ~merlin:_ = ()
 end
