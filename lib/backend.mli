@@ -11,8 +11,8 @@ module type Data_tables = sig
   val kind : kind
   (** The backend kind *)
 
-  val create_initial : Merlin.t -> t
-  (** Initializes the tables. Data can then be appended to them. *)
+  val create_initial : dump_dir:Fpath.t -> Merlin.t -> t
+  (** Initializes the tables and opens streaming channels in [dump_dir]. *)
 
   val init_cache : t -> bool
 
