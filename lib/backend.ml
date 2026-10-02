@@ -20,7 +20,6 @@ module type Data_tables = sig
     unit
 
   val persist_logs : log:Logs.t -> t -> unit
-  val dump : dump_dir:Fpath.t -> t -> unit
   val all_files : unit -> Fpath.t list
 
   val wrap_up :
