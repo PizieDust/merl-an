@@ -82,6 +82,16 @@ module Query_response = struct
   (* FIXME: print the sample repeats in a separate json field *)
   let pp ppf data =
     Format.fprintf ppf "%s%!" (Yojson.Safe.to_string (yojson_of_t data))
+
+  let write_stripped oc ~id ~cmd ~responses =
+    let responses =
+      List.map
+        (fun resp ->
+          Merlin.Response.(
+            crop_arbitrary_keys [ "value" ] @@ strip_location @@ resp))
+        responses
+    in
+    write_json_line oc pp { sample_id = id; cmd; responses }
 end
 
 module Command = struct
@@ -249,17 +259,8 @@ module Performance = struct
     let perf =
       { P.timings; max_timing; file; query_type; sample_id = id; loc }
     in
-    let resp =
-      (* TODO: make a cli-argument out of this instead of doing this always *)
-      let responses =
-        List.map
-          (fun resp ->
-            Merlin.Response.(
-              crop_arbitrary_keys [ "value" ] @@ strip_location @@ resp))
-          responses
-      in
-      { Query_response.sample_id = id; cmd; responses }
-    in
+    write_json_line tables.performances P.pp perf;
+    Query_response.write_stripped tables.query_responses ~id ~cmd ~responses;
     let cmd = { Command.sample_id = id; cmd } in
     tables.performances <- perf :: tables.performances;
     tables.query_responses <- resp :: tables.query_responses;
@@ -481,17 +482,6 @@ module Benchmark = struct
   let update_analysis_data ~id ~responses ~cmd ~file:_file
       ~loc:(_loc : Import.location) ~query_type tables =
     let _max_timing, timings, responses = extract_timings responses in
-    let resp =
-      (* TODO: make a cli-argument out of this instead of doing this always *)
-      let responses =
-        List.map
-          Merlin.Response.(
-            fun resp ->
-              crop_arbitrary_keys [ "value" ] @@ strip_location @@ resp)
-          responses
-      in
-      { Query_response.sample_id = id; cmd; responses }
-    in
     let cmd = { Command.sample_id = id; cmd } in
     let metric =
       {
@@ -516,7 +506,7 @@ module Benchmark = struct
         upd tables.bench.results
     in
     tables.bench.results <- result;
-    tables.query_responses <- resp :: tables.query_responses;
+    Query_response.write_stripped tables.query_responses ~id ~cmd ~responses;
     tables.commands <- cmd :: tables.commands
 
   let wrap_up _t ~dump_dir:_ ~proj_paths:_ ~merlin:_ = ()
