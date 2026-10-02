@@ -58,21 +58,20 @@ module Make (B : Backend.Data_tables) = struct
   let init ~force_yes merlin dump_dir =
     let open Result.Syntax in
     let* () = create_dir_recursively ~force_yes dump_dir in
-    let tables = B.create_initial merlin in
     let data_files = B.all_files () in
     create_files dump_dir data_files;
     if some_file_isnt_writable dump_dir data_files then (
       Format.eprintf "It's not possible to write to the data files\n%!";
       exit 20)
-    else Ok { dump_dir; content = tables; merlin }
+    else
+      let tables = B.create_initial ~dump_dir merlin in
+      Ok { dump_dir; content = tables; merlin }
 
   let update t { id; responses; cmd; file; loc; query_type } =
     B.update_analysis_data ~id ~responses ~cmd ~file ~loc ~query_type t.content
 
   let persist_logs ~log { content; _ } = B.persist_logs ~log content
 
-  let wrap_up { content; dump_dir; merlin } =
-    B.wrap_up content ~dump_dir ~merlin
-
-    
+  let wrap_up { content; dump_dir; merlin } ~proj_paths =
+    B.wrap_up content ~dump_dir ~proj_paths ~merlin
 end
