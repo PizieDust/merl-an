@@ -45,9 +45,9 @@ let analyze ~backend:(module Backend : Backend.Data_tables) ~repeats
         let make_sample ~id:_ file = file in
         Reservoir.get_samples ~make_sample ~id_counter:1 reservoir
   in
-  (*TODO: add terminal logging when getting the files: log number of files that are going to be benchmarked and, at the end, log how many that are.*)
-  let side_effectively_add_data id_counter (file, query_type) =
-    let update = D.update data in
+  let total_files = List.length files in
+  let progress = Progress.create ~total_files () in
+  let side_effectively_add_data ~update id_counter (file, query_type) =
     if Merlin.Query_type.is_global query_type then
       let () =
         let d =
@@ -89,10 +89,26 @@ let analyze ~backend:(module Backend : Backend.Data_tables) ~repeats
               D.persist_logs ~log data;
               new_id_counter)
   in
-  let _last_sample_id =
-    (* The traversal is done in files -> query_types order. *)
-    List.fold_over_product ~l1:files ~l2:query_types ~init:0
-      side_effectively_add_data
+  let _last_sample_id, _ =
+    List.fold_left
+      (fun (id_counter, file_idx) file ->
+        let files_left = total_files - file_idx in
+        let queries_in_file = ref 0 in
+        let update sample =
+          D.update data sample;
+          incr queries_in_file;
+          Progress.update progress ~file_idx ~file ~queries:!queries_in_file
+        in
+        let new_id_counter =
+          List.fold_left
+            (fun id_counter query_type ->
+              side_effectively_add_data ~update id_counter (file, query_type))
+            id_counter query_types
+        in
+        Progress.finish_file progress ~file ~queries:!queries_in_file
+          ~files_left;
+        (new_id_counter, file_idx + 1))
+      (0, 1) files
   in
   D.wrap_up data ~proj_paths;
   if Merlin.is_server merlin then Merlin.stop_server merlin else ();
