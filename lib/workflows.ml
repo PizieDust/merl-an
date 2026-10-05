@@ -42,6 +42,8 @@ let analyze ~backend:(module Backend : Backend.Data_channels) ~repeats
         let make_sample ~id:_ file = file in
         Reservoir.get_samples ~make_sample ~id_counter:1 reservoir
   in
+  let total_files = List.length files in
+  let progress = Progress.create ~total_files () in
   let module D = Data.Make (Backend) in
   let* channels = D.init ~force_yes merlin data_dir in
   Fun.protect
@@ -50,8 +52,7 @@ let analyze ~backend:(module Backend : Backend.Data_channels) ~repeats
       if Merlin.is_server merlin then Merlin.stop_server merlin else ())
     (fun () ->
       let init_cache = D.init_cache channels in
-      let stream_query_data id_counter (file, query_type) =
-        let write = D.write channels in
+      let stream_query_data ~write id_counter (file, query_type) =
         if Merlin.Query_type.is_global query_type then
           let () =
             let d =
