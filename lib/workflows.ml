@@ -45,9 +45,9 @@ let analyze ~backend:(module Backend : Backend.Data_tables) ~repeats
         let make_sample ~id:_ file = file in
         Reservoir.get_samples ~make_sample ~id_counter:1 reservoir
   in
-  (*TODO: add terminal logging when getting the files: log number of files that are going to be benchmarked and, at the end, log how many that are.*)
-  let side_effectively_add_data id_counter (file, query_type) =
-    let update = D.update data in
+  let total_files = List.length files in
+  let progress = Progress.create ~total_files () in
+  let side_effectively_add_data ~update id_counter (file, query_type) =
     if Merlin.Query_type.is_global query_type then
       let () =
         let d =
