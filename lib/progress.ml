@@ -30,4 +30,3 @@ let finish_file t ~file ~queries ~files_left =
       (files_left_str files_left t.total_files)
   in
   if t.is_tty then Format.eprintf "\r\027[K%s\n%!" msg
-  else Format.eprintf "%s\n%!" msg
