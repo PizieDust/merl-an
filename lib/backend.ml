@@ -299,10 +299,13 @@ module Performance = struct
       write_single pp data_dir file_name metadata
   end
 
-  let wrap_up t ~dump_dir ~proj_paths ~merlin =
-    close_channels [ t.performances; t.query_responses; t.commands; t.logs ];
-    dump_single Merlin.pp dump_dir (Fpath.v "merlin.json") merlin;
-    Metadata.produce_and_dump ~dump_dir ~proj_paths ~merlin
+  let wrap_up t ~data_dir ~proj_paths ~merlin =
+    Fun.protect
+      ~finally:(fun () ->
+        close_channels [ t.performances; t.query_responses; t.commands; t.logs ])
+      (fun () ->
+        write_single Merlin.pp data_dir (Fpath.v "merlin.json") merlin;
+        Metadata.produce_and_write ~data_dir ~proj_paths ~merlin)
 
   let all_files () =
     let f = Field.to_filename in
@@ -480,8 +483,12 @@ module Benchmark = struct
     Query_response.write_stripped channels.query_responses ~id ~cmd ~responses;
     Command.write channels.commands ~id ~cmd
 
-  let wrap_up t ~dump_dir ~proj_paths:_ ~merlin =
-    close_channels [ t.query_responses; t.commands; t.logs ];
-    dump_single Benchmark_summary.pp dump_dir (Fpath.v "bench.json") t.bench;
-    dump_single Merlin.pp dump_dir (Fpath.v "merlin.json") merlin
+  let wrap_up t ~data_dir ~proj_paths:_ ~merlin =
+    Fun.protect
+      ~finally:(fun () ->
+        close_channels [ t.query_responses; t.commands; t.logs ])
+      (fun () ->
+        write_single Benchmark_summary.pp data_dir (Fpath.v "bench.json")
+          t.bench;
+        write_single Merlin.pp data_dir (Fpath.v "merlin.json") merlin)
 end
