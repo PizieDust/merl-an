@@ -17,12 +17,13 @@ module Make (_ : Backend.Data_tables) : sig
       (unmutable) and the data that's being collected step by step by the tool
       (mutable). *)
 
-  (* TODO: this shouldn't be only exactly merlins and dump_dir, but all configuration data. and the data should be stored in Data.t as well*)
+  (* TODO: this shouldn't be only exactly merlin and data_dir, but all configuration data. and the data should be stored in Data.t as well*)
   val init : force_yes:bool -> Merlin.t -> Fpath.t -> (t, Rresult.R.msg) result
-  (** [init ~pure dir_path] returns a data instance with empty mutable content.
-      The provided path [dir_path] is the path of the directory, inside which
-      the data will be persisted as json-line-files. Returns and error if
-      [dir_path] already exists and the user decides to abort. *)
+  (** [init ~force_yes merlin dir_path] returns a data instance with initialized
+      streaming channels. The provided path [dir_path] is the path of the
+      directory, inside which the data will be persisted as json-line-files.
+      Returns an error if [dir_path] already exists and the user decides to
+      abort. *)
 
   val init_cache : t -> bool
 
@@ -30,10 +31,9 @@ module Make (_ : Backend.Data_tables) : sig
   (** Update the data by appending analyzis data of one sample to it. *)
 
   val persist_logs : log:Logs.t -> t -> unit
-  (** Add the log to one of the data tables; the table will later be dumped to
-      disk when dumping all tables. *)
+  (** Append the log to the logs output stream. *)
 
   val wrap_up : t -> proj_paths:Fpath.t list -> unit
   (** Call this, before ending the program. Depending on the backend kind, it
-      generates and dumps metadata or summaries and closes open streams. *)
+      generates and writes metadata or summaries and closes open streams. *)
 end

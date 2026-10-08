@@ -11,8 +11,8 @@ module type Data_tables = sig
   val kind : kind
   (** The backend kind *)
 
-  val create_initial : dump_dir:Fpath.t -> Merlin.t -> t
-  (** Initializes the tables and opens streaming channels in [dump_dir]. *)
+  val create_initial : data_dir:Fpath.t -> Merlin.t -> t
+  (** Initializes the backend and opens streaming channels in [data_dir]. *)
 
   val init_cache : t -> bool
 
@@ -31,13 +31,13 @@ module type Data_tables = sig
   (** Append logs. *)
 
   val all_files : unit -> Fpath.t list
-  (** Returns the list of all files to which the data is dumped. *)
+  (** Returns the list of all files to which the data is written. *)
 
   val wrap_up :
-    t -> dump_dir:Fpath.t -> proj_paths:Fpath.t list -> merlin:Merlin.t -> unit
-  (** Call this, before ending the program. It makes sure there's no data left
-      in memory anymore and, in case there still is, dumps it (TODO!). Depending
-      on the backend kind, it also generates and dumps some metadata. *)
+    t -> data_dir:Fpath.t -> proj_paths:Fpath.t list -> merlin:Merlin.t -> unit
+  (** Call this before ending the program. It closes open channels and,
+      depending on the backend kind, generates and writes some metadata or
+      summaries. *)
 end
 
 module Performance : Data_tables

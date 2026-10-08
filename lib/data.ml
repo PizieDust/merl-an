@@ -12,7 +12,7 @@ type sample = {
 
 module Make (B : Backend.Data_tables) = struct
   (* TODO: should probably also contain `repeats` and all the other means of configuration  *)
-  type t = { dump_dir : Fpath.t; content : B.t; merlin : Merlin.t }
+  type t = { data_dir : Fpath.t; channels : B.t; merlin : Merlin.t }
 
   let create_dir_recursively ~force_yes data_path =
     let dir = Fpath.to_string data_path in
@@ -38,7 +38,7 @@ module Make (B : Backend.Data_tables) = struct
       |> List.iter (fun dir -> try Sys.mkdir dir 0o777 with _ -> ())
       |> Result.ok
 
-  let init_cache d = B.init_cache d.content
+  let init_cache d = B.init_cache d.channels
 
   let create_files dir =
     List.iter (fun fn ->
@@ -54,24 +54,24 @@ module Make (B : Backend.Data_tables) = struct
             close_out_noerr oc;
             false)
 
-  (* TODO: this shouldn't be only exactly dump_dir, but all configuration data. and the data should be stored in Data.t as well*)
-  let init ~force_yes merlin dump_dir =
+  (* TODO: this shouldn't be only exactly data_dir, but all configuration data. and the data should be stored in Data.t as well*)
+  let init ~force_yes merlin data_dir =
     let open Result.Syntax in
-    let* () = create_dir_recursively ~force_yes dump_dir in
+    let* () = create_dir_recursively ~force_yes data_dir in
     let data_files = B.all_files () in
-    create_files dump_dir data_files;
-    if some_file_isnt_writable dump_dir data_files then (
+    create_files data_dir data_files;
+    if some_file_isnt_writable data_dir data_files then (
       Format.eprintf "It's not possible to write to the data files\n%!";
       exit 20)
     else
-      let tables = B.create_initial ~dump_dir merlin in
-      Ok { dump_dir; content = tables; merlin }
+      let channels = B.create_initial ~data_dir merlin in
+      Ok { data_dir; channels; merlin }
 
   let update t { id; responses; cmd; file; loc; query_type } =
-    B.update_analysis_data ~id ~responses ~cmd ~file ~loc ~query_type t.content
+    B.update_analysis_data ~id ~responses ~cmd ~file ~loc ~query_type t.channels
 
-  let persist_logs ~log { content; _ } = B.persist_logs ~log content
+  let persist_logs ~log { channels; _ } = B.persist_logs ~log channels
 
-  let wrap_up { content; dump_dir; merlin } ~proj_paths =
-    B.wrap_up content ~dump_dir ~proj_paths ~merlin
+  let wrap_up { channels; data_dir; merlin } ~proj_paths =
+    B.wrap_up channels ~data_dir ~proj_paths ~merlin
 end
