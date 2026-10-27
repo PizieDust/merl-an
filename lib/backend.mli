@@ -11,9 +11,6 @@ module type Data_channels = sig
   val kind : kind
   (** The backend kind *)
 
-  val create_initial : data_dir:Fpath.t -> Merlin.t -> t
-  (** Initializes the backend and opens streaming channels in [data_dir]. *)
-
   val init_cache : t -> bool
 
   val write_analysis_data :
@@ -33,11 +30,15 @@ module type Data_channels = sig
   val all_files : unit -> Fpath.t list
   (** Returns the list of all files to which the data is written. *)
 
-  val wrap_up :
-    t -> data_dir:Fpath.t -> proj_paths:Fpath.t list -> merlin:Merlin.t -> unit
-  (** Call this before ending the program. It closes open channels and,
-      depending on the backend kind, generates and writes some metadata or
-      summaries. *)
+  val with_channels :
+    data_dir:Fpath.t ->
+    merlin:Merlin.t ->
+    proj_paths:Fpath.t list ->
+    (t -> 'a) ->
+    'a
+  (** Scopes the entire channel lifecycle: opens streams, runs the callback,
+      writes backend-specific summaries/metadata, and guarantees closing all open
+      channels even on exception. *)
 end
 
 module Performance : Data_channels

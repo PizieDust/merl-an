@@ -6,7 +6,6 @@ module type Data_channels = sig
   type t
 
   val kind : kind
-  val create_initial : data_dir:Fpath.t -> Merlin.t -> t
   val init_cache : t -> bool
 
   val write_analysis_data :
@@ -22,8 +21,12 @@ module type Data_channels = sig
   val persist_logs : log:Logs.t -> t -> unit
   val all_files : unit -> Fpath.t list
 
-  val wrap_up :
-    t -> data_dir:Fpath.t -> proj_paths:Fpath.t list -> merlin:Merlin.t -> unit
+  val with_channels :
+    data_dir:Fpath.t ->
+    merlin:Merlin.t ->
+    proj_paths:Fpath.t list ->
+    (t -> 'a) ->
+    'a
 end
 
 module Field = struct
@@ -53,10 +56,9 @@ let with_open_channels f =
     opened := oc :: !opened;
     oc
   in
-  try f open_safe
-  with exn ->
-    close_channels !opened;
-    raise exn
+  Fun.protect
+    ~finally:(fun () -> close_channels !opened)
+    (fun () -> f open_safe)
 
 let write_single pp data_dir file_name data =
   let oc = open_channel data_dir file_name in
@@ -299,7 +301,7 @@ module Performance = struct
       write_single pp data_dir file_name metadata
   end
 
-  let create_initial ~data_dir merlin =
+  let with_channels ~data_dir ~merlin ~proj_paths f =
     with_open_channels (fun open_channel ->
         let open_field field =
           open_channel data_dir (Field.to_filename field)
@@ -308,15 +310,14 @@ module Performance = struct
         let query_responses = open_field Fields.query_responses in
         let commands = open_field Fields.commands in
         let logs = open_field Fields.logs in
-        { performances; query_responses; commands; logs; merlin })
-
-  let wrap_up t ~data_dir ~proj_paths ~merlin =
-    Fun.protect
-      ~finally:(fun () ->
-        close_channels [ t.performances; t.query_responses; t.commands; t.logs ])
-      (fun () ->
-        write_single Merlin.pp data_dir (Field.to_filename Fields.merlin) merlin;
-        Metadata.produce_and_write ~data_dir ~proj_paths ~merlin)
+        let t = { performances; query_responses; commands; logs; merlin } in
+        Fun.protect
+          ~finally:(fun () ->
+            write_single Merlin.pp data_dir
+              (Field.to_filename Fields.merlin)
+              merlin;
+            Metadata.produce_and_write ~data_dir ~proj_paths ~merlin)
+          (fun () -> f t))
 
   let all_files () =
     let f = Field.to_filename in
@@ -403,7 +404,7 @@ let behavior config =
           | _ -> (*FIXME*) ())
         t.distilled_data
 
-    let create_initial ~data_dir _merlin =
+    let with_channels ~data_dir ~merlin:_ ~proj_paths:_ f =
       with_open_channels (fun open_channel ->
           let open_field field =
             open_channel data_dir (Field.to_filename field)
@@ -420,12 +421,8 @@ let behavior config =
           in
           let commands = open_field Fields.commands in
           let logs = open_field Fields.logs in
-          { full_responses; distilled_data; commands; logs })
-
-    let wrap_up t ~data_dir:_ ~proj_paths:_ ~merlin:_ =
-      Option.iter close_out_noerr t.full_responses;
-      Option.iter close_out_noerr t.distilled_data;
-      close_channels [ t.commands; t.logs ]
+          let t = { full_responses; distilled_data; commands; logs } in
+          f t)
 
     let init_cache _ = false
 
@@ -447,22 +444,6 @@ module Benchmark = struct
 
   let kind = Bench
   let init_cache b = Merlin.is_server b.merlin
-
-  let create_initial ~data_dir merlin =
-    with_open_channels (fun open_channel ->
-        let open_field field =
-          open_channel data_dir (Field.to_filename field)
-        in
-        let query_responses = open_field Fields.query_responses in
-        let commands = open_field Fields.commands in
-        let logs = open_field Fields.logs in
-        {
-          bench = { results = StringMap.empty };
-          query_responses;
-          commands;
-          logs;
-          merlin;
-        })
 
   let persist_logs ~log t = write_json_line t.logs Logs.pp log
 
@@ -499,12 +480,30 @@ module Benchmark = struct
     Query_response.write_stripped t.query_responses ~id ~cmd ~responses;
     Command.write t.commands ~id ~cmd
 
-  let wrap_up t ~data_dir ~proj_paths:_ ~merlin =
-    Fun.protect
-      ~finally:(fun () ->
-        close_channels [ t.query_responses; t.commands; t.logs ])
-      (fun () ->
-        write_single Benchmark_summary.pp data_dir
-          (Field.to_filename Fields.bench) t.bench;
-        write_single Merlin.pp data_dir (Field.to_filename Fields.merlin) merlin)
+  let with_channels ~data_dir ~merlin ~proj_paths:_ f =
+    with_open_channels (fun open_channel ->
+        let open_field field =
+          open_channel data_dir (Field.to_filename field)
+        in
+        let query_responses = open_field Fields.query_responses in
+        let commands = open_field Fields.commands in
+        let logs = open_field Fields.logs in
+        let t =
+          {
+            bench = { results = StringMap.empty };
+            query_responses;
+            commands;
+            logs;
+            merlin;
+          }
+        in
+        Fun.protect
+          ~finally:(fun () ->
+            write_single Benchmark_summary.pp data_dir
+              (Field.to_filename Fields.bench)
+              t.bench;
+            write_single Merlin.pp data_dir
+              (Field.to_filename Fields.merlin)
+              merlin)
+          (fun () -> f t))
 end

@@ -16,12 +16,17 @@ module Make (_ : Backend.Data_channels) : sig
       analysis data. *)
 
   (* TODO: this shouldn't be only exactly merlin and data_dir, but all configuration data. and the data should be stored in Data.t as well*)
-  val init : force_yes:bool -> Merlin.t -> Fpath.t -> (t, Rresult.R.msg) result
-  (** [init ~force_yes merlin dir_path] returns a data instance with initialized
-      streaming channels. The provided path [dir_path] is the path of the
-      directory, inside which the data will be persisted as json-line-files.
-      Returns an error if [dir_path] already exists and the user decides to
-      abort. *)
+  val with_data :
+    force_yes:bool ->
+    merlin:Merlin.t ->
+    data_dir:Fpath.t ->
+    proj_paths:Fpath.t list ->
+    (t -> ('a, [> Rresult.R.msg ] as 'b) result) ->
+    ('a, 'b) result
+  (** [with_data ~force_yes ~merlin ~data_dir ~proj_paths f] returns the result
+      of running [f] with a data instance and initialized streaming channels.
+      Streaming channels are guaranteed to be closed after [f] finishes. Returns
+      an error if [data_dir] already exists and the user decides to abort. *)
 
   val init_cache : t -> bool
 
@@ -30,8 +35,4 @@ module Make (_ : Backend.Data_channels) : sig
 
   val persist_logs : log:Logs.t -> t -> unit
   (** Append the log to the logs output stream. *)
-
-  val wrap_up : t -> proj_paths:Fpath.t list -> unit
-  (** Call this, before ending the program. Depending on the backend kind, it
-      generates and writes metadata or summaries and closes open streams. *)
 end

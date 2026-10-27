@@ -55,7 +55,7 @@ module Make (B : Backend.Data_channels) = struct
             false)
 
   (* TODO: this shouldn't be only exactly data_dir, but all configuration data. and the data should be stored in Data.t as well*)
-  let init ~force_yes merlin data_dir =
+  let with_data ~force_yes ~merlin ~data_dir ~proj_paths f =
     let open Result.Syntax in
     let* () = create_dir_recursively ~force_yes data_dir in
     let data_files = B.all_files () in
@@ -64,14 +64,11 @@ module Make (B : Backend.Data_channels) = struct
       Format.eprintf "It's not possible to write to the data files\n%!";
       exit 20)
     else
-      let backend = B.create_initial ~data_dir merlin in
-      Ok { data_dir; backend; merlin }
+      B.with_channels ~data_dir ~merlin ~proj_paths (fun backend ->
+          f { data_dir; backend; merlin })
 
   let write t { id; responses; cmd; file; loc; query_type } =
     B.write_analysis_data ~id ~responses ~cmd ~file ~loc ~query_type t.backend
 
   let persist_logs ~log { backend; _ } = B.persist_logs ~log backend
-
-  let wrap_up { backend; data_dir; merlin } ~proj_paths =
-    B.wrap_up backend ~data_dir ~proj_paths ~merlin
 end
