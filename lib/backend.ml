@@ -363,8 +363,8 @@ let behavior config =
               let opt_and_log res =
                 Result.fold
                   ~ok:(fun rc -> Some rc)
-                  ~error:(fun e ->
-                    persist_logs ~log:e t;
+                  ~error:(fun log ->
+                    persist_logs ~log t;
                     None)
                   res
               in
