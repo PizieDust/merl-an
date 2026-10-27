@@ -1,6 +1,6 @@
 open! Import
 
-(* FIXME: once the tables structure is improved, this type should be split into several types and renamed *)
+(* FIXME: this type should be split into several types and renamed *)
 type sample = {
   id : int;
   responses : Merlin.Response.t list;
@@ -12,7 +12,7 @@ type sample = {
 
 module Make (B : Backend.Data_channels) = struct
   (* TODO: should probably also contain `repeats` and all the other means of configuration  *)
-  type t = { data_dir : Fpath.t; channels : B.t; merlin : Merlin.t }
+  type t = { data_dir : Fpath.t; backend : B.t; merlin : Merlin.t }
 
   let create_dir_recursively ~force_yes data_path =
     let dir = Fpath.to_string data_path in
@@ -38,7 +38,7 @@ module Make (B : Backend.Data_channels) = struct
       |> List.iter (fun dir -> try Sys.mkdir dir 0o777 with _ -> ())
       |> Result.ok
 
-  let init_cache d = B.init_cache d.channels
+  let init_cache d = B.init_cache d.backend
 
   let create_files dir =
     List.iter (fun fn ->
@@ -64,14 +64,14 @@ module Make (B : Backend.Data_channels) = struct
       Format.eprintf "It's not possible to write to the data files\n%!";
       exit 20)
     else
-      let channels = B.create_initial ~data_dir merlin in
-      Ok { data_dir; channels; merlin }
+      let backend = B.create_initial ~data_dir merlin in
+      Ok { data_dir; backend; merlin }
 
   let write t { id; responses; cmd; file; loc; query_type } =
-    B.write_analysis_data ~id ~responses ~cmd ~file ~loc ~query_type t.channels
+    B.write_analysis_data ~id ~responses ~cmd ~file ~loc ~query_type t.backend
 
-  let persist_logs ~log { channels; _ } = B.persist_logs ~log channels
+  let persist_logs ~log { backend; _ } = B.persist_logs ~log backend
 
-  let wrap_up { channels; data_dir; merlin } ~proj_paths =
-    B.wrap_up channels ~data_dir ~proj_paths ~merlin
+  let wrap_up { backend; data_dir; merlin } ~proj_paths =
+    B.wrap_up backend ~data_dir ~proj_paths ~merlin
 end

@@ -44,15 +44,15 @@ let analyze ~backend:(module Backend : Backend.Data_channels) ~repeats
         Reservoir.get_samples ~make_sample ~id_counter:1 reservoir
   in
   let module D = Data.Make (Backend) in
-  let* channels = D.init ~force_yes merlin data_dir in
+  let* data = D.init ~force_yes merlin data_dir in
   Fun.protect
     ~finally:(fun () ->
-      D.wrap_up channels ~proj_paths;
+      D.wrap_up data ~proj_paths;
       if Merlin.is_server merlin then Merlin.stop_server merlin else ())
     (fun () ->
-      let init_cache = D.init_cache channels in
+      let init_cache = D.init_cache data in
       let stream_query_data id_counter (file, query_type) =
-        let write = D.write channels in
+        let write = D.write data in
         if Merlin.Query_type.is_global query_type then
           let () =
             let d =
@@ -61,7 +61,7 @@ let analyze ~backend:(module Backend : Backend.Data_channels) ~repeats
               Ok (cmd, responses)
             in
             match d with
-            | Error log -> D.persist_logs ~log channels
+            | Error log -> D.persist_logs ~log data
             | Ok (cmd, responses) ->
                 write
                   {
@@ -85,7 +85,7 @@ let analyze ~backend:(module Backend : Backend.Data_channels) ~repeats
                      "File %s couldn't be parsed and was ignored.\n"
                      (Yojson.Safe.to_string @@ File.yojson_of_t file))
               in
-              D.persist_logs ~log channels;
+              D.persist_logs ~log data;
               id_counter
           | Some (samples, new_id_counter) -> (
               match
@@ -94,7 +94,7 @@ let analyze ~backend:(module Backend : Backend.Data_channels) ~repeats
               with
               | Ok () -> new_id_counter
               | Error log ->
-                  D.persist_logs ~log channels;
+                  D.persist_logs ~log data;
                   new_id_counter)
       in
       let _last_sample_id =

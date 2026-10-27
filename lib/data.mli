@@ -1,6 +1,6 @@
 open! Import
 
-(* FIXME: once the tables structure is improved, this type should be split into several types and renamed *)
+(* FIXME: this type should be split into several types and renamed *)
 type sample = {
   id : int;
   responses : Merlin.Response.t list;
