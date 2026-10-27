@@ -21,7 +21,7 @@ module Make (_ : Backend.Data_channels) : sig
     merlin:Merlin.t ->
     data_dir:Fpath.t ->
     proj_paths:Fpath.t list ->
-    (t -> ('a, [> Rresult.R.msg ] as 'b) result) ->
+    (t -> ('a, ([> Rresult.R.msg ] as 'b)) result) ->
     ('a, 'b) result
   (** [with_data ~force_yes ~merlin ~data_dir ~proj_paths f] returns the result
       of running [f] with a data instance and initialized streaming channels.

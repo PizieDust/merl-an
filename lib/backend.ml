@@ -410,8 +410,7 @@ let behavior config =
             open_channel data_dir (Field.to_filename field)
           in
           let full_responses =
-            if config.full then
-              Some (open_field Fields.full_responses)
+            if config.full then Some (open_field Fields.full_responses)
             else None
           in
           let distilled_data =
@@ -444,7 +443,6 @@ module Benchmark = struct
 
   let kind = Bench
   let init_cache b = Merlin.is_server b.merlin
-
   let persist_logs ~log t = write_json_line t.logs Logs.pp log
 
   let all_files () =

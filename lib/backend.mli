@@ -37,8 +37,8 @@ module type Data_channels = sig
     (t -> 'a) ->
     'a
   (** Scopes the entire channel lifecycle: opens streams, runs the callback,
-      writes backend-specific summaries/metadata, and guarantees closing all open
-      channels even on exception. *)
+      writes backend-specific summaries/metadata, and guarantees closing all
+      open channels even on exception. *)
 end
 
 module Performance : Data_channels
