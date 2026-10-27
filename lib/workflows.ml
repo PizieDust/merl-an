@@ -2,7 +2,7 @@ open! Import
 
 let analyze ~backend ~repeats ~cache_workflow ~merlin_path ~proj_dirs ~data_dir
     ~per_file_samples ~total_samples ~query_types ~filter_outliers ~extensions
-    ~force_yes =
+    ~force_yes ~verbose =
   let merlin_path = Fpath.v merlin_path in
   let merlin = Merlin.make merlin_path cache_workflow in
   let proj_path dir = Fpath.v @@ dir in
@@ -55,7 +55,7 @@ let analyze ~backend ~repeats ~cache_workflow ~merlin_path ~proj_dirs ~data_dir
           let () =
             let d =
               let* cmd = Merlin.Cmd.make ~query_type ~file merlin in
-              let* responses = Merlin.Cmd.run ~repeats cmd in
+              let* responses = Merlin.Cmd.run ~verbose ~repeats cmd in
               Ok (cmd, responses)
             in
             match d with
@@ -88,7 +88,7 @@ let analyze ~backend ~repeats ~cache_workflow ~merlin_path ~proj_dirs ~data_dir
           | Some (samples, new_id_counter) -> (
               match
                 Samples.analyze ~init_cache ~merlin ~repeats ~stream:write
-                  ~filter_outliers samples
+                  ~filter_outliers ~verbose samples
               with
               | Ok () -> new_id_counter
               | Error log ->
