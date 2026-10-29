@@ -343,9 +343,8 @@ let behavior config =
 
     let write_analysis_data ~id ~responses ~cmd ~file:_ ~loc:_ ~query_type:_ t =
       Command.write t.commands ~id ~cmd;
-
-      Option.iter
-        (fun oc ->
+      t.full_responses
+      |> Option.iter (fun oc ->
           let responses =
             List.map
               (fun resp ->
@@ -356,10 +355,9 @@ let behavior config =
               responses
           in
           let resp = { Query_response.sample_id = id; cmd; responses } in
-          write_json_line oc Query_response.pp resp)
-        t.full_responses;
-      Option.iter
-        (fun oc ->
+          write_json_line oc Query_response.pp resp);
+      t.distilled_data
+      |> Option.iter (fun oc ->
           match responses with
           | [ resp ] -> (
               match
@@ -402,7 +400,6 @@ let behavior config =
                   persist_logs ~log:log1 t;
                   persist_logs ~log:log2 t)
           | _ -> (*FIXME*) ())
-        t.distilled_data
 
     let with_channels ~data_dir ~merlin:_ ~proj_paths:_ f =
       with_open_channels (fun open_channel ->
